@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MPVF · Material Price & Vendor Finder</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%235B2D8E'/%3E%3Cstop offset='100%25' stop-color='%23F97316'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='16' y='22' text-anchor='middle' font-size='16' font-weight='900' font-family='Arial,sans-serif' fill='white'%3EM%3C/text%3E%3C/svg%3E"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --purple:#5B2D8E;--purple-l:#7B3DB8;--purple-pale:#F3EEFA;--purple-mid:#EDE0F8;
+  --orange:#F97316;--orange-l:#FB923C;--orange-pale:#FFF4ED;
+  --bg:#F8F6FB;--surface:#FFF;--surface2:#F3EEFA;--surface3:#EDE0F8;
+  --border:rgba(91,45,142,0.12);--border2:rgba(91,45,142,0.22);
+  --text:#1E0A3C;--text2:#6B5B8A;--text3:#A694C0;
+  --success:#16A34A;--success-bg:#DCFCE7;
+  --danger:#DC2626;--danger-bg:#FEE2E2;
+  --warn:#D97706;--warn-bg:#FEF3C7;
+  --r:10px;--rsm:7px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+.bg-pattern{position:fixed;inset:0;z-index:0;background-image:radial-gradient(circle,rgba(91,45,142,0.04) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;}
+.bg-orb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;}
+.bg-orb1{width:600px;height:600px;background:radial-gradient(circle,rgba(91,45,142,0.07) 0%,transparent 70%);top:-180px;left:-180px;animation:orbF1 14s ease-in-out infinite;}
+.bg-orb2{width:400px;height:400px;background:radial-gradient(circle,rgba(249,115,22,0.06) 0%,transparent 70%);bottom:-120px;right:-120px;animation:orbF2 18s ease-in-out infinite;}
+@keyframes orbF1{0%,100%{transform:translate(0,0);}50%{transform:translate(30px,20px);}}
+@keyframes orbF2{0%,100%{transform:translate(0,0);}50%{transform:translate(-20px,-30px);}}
+
+/* Splash */
+#splash{position:fixed;inset:0;z-index:1000;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .5s,visibility .5s;}
+#splash.hide{opacity:0;visibility:hidden;}
+.splash-ring{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--orange));display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;animation:spB 1.4s ease-in-out infinite;}
+.splash-title{font-size:20px;font-weight:800;color:var(--purple);}
+.splash-title span{color:var(--orange);}
+.splash-sub{font-size:12px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+.splash-bar{width:180px;height:3px;background:var(--purple-mid);border-radius:99px;overflow:hidden;}
+.splash-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--orange));animation:spL 2s ease-in-out forwards;}
+@keyframes spB{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+@keyframes spL{0%{width:0%;}100%{width:100%;}}
+
+/* Header */
+header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 1.5rem;height:58px;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:11px;}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--purple),var(--purple-l));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;box-shadow:0 2px 8px rgba(91,45,142,0.25);}
+.logo-text{font-size:15px;font-weight:800;color:var(--purple);}
+.logo-text span{color:var(--orange);}
+.logo-tag{font-size:10px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.hdr-btn{width:36px;height:36px;border-radius:9px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .2s;position:relative;}
+.hdr-btn:hover,.hdr-btn.active{border-color:var(--purple);color:var(--purple);background:var(--purple-pale);}
+.key-dot{width:7px;height:7px;border-radius:50%;position:absolute;top:6px;right:6px;}
+.key-dot.ok{background:var(--success);}
+.key-dot.no{background:var(--orange);}
+
+/* Views */
+.view{position:relative;z-index:1;display:none;}
+.view.active{display:block;}
+
+/* Layout */
+.page{max-width:1060px;margin:0 auto;padding:1.5rem;display:flex;gap:1.5rem;align-items:flex-start;}
+.main{flex:1;min-width:0;}
+.sidebar{width:220px;flex-shrink:0;}
+
+/* Hero */
+.hero{padding:1.5rem 0 1rem;text-align:center;}
+.hero h1{font-size:24px;font-weight:800;color:var(--purple);margin-bottom:5px;letter-spacing:-.3px;}
+.hero h1 span{color:var(--orange);}
+.hero p{font-size:13px;color:var(--text2);}
+
+/* No key banner */
+.no-key-banner{background:var(--orange-pale);border:1px solid rgba(249,115,22,.25);border-radius:10px;padding:11px 16px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--orange);margin-bottom:1.25rem;cursor:pointer;transition:all .2s;}
+.no-key-banner:hover{background:#FFE8D5;}
+
+/* Search card */
+.search-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1rem;position:relative;overflow:hidden;box-shadow:0 1px 6px rgba(91,45,142,0.07);}
+.search-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--orange));}
+
+/* Search mode tabs */
+.mode-tabs{display:flex;gap:8px;margin-bottom:1.1rem;}
+.mode-tab{position:relative;flex:1;padding:14px 8px;border:2px solid var(--border2);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:var(--surface);color:var(--text2);transition:all .15s;user-select:none;-webkit-user-select:none;min-height:84px;}
+/* Hover = subtle only */
+.mode-tab:hover:not(.active){border-color:var(--border2);background:var(--purple-pale);color:var(--purple);}
+/* ACTIVE = bold filled gradient, white text, checkmark */
+.mode-tab.active{border-color:var(--purple);background:linear-gradient(135deg,var(--purple),var(--purple-l));color:#fff;box-shadow:0 4px 16px rgba(91,45,142,0.35);transform:translateY(-1px);}
+.mode-tab.active i{color:#fff;}
+.mode-tab.active .tab-label{color:#fff;}
+.mode-tab.active::after{content:'\2713';position:absolute;top:6px;right:8px;font-size:12px;font-weight:900;color:#fff;background:rgba(255,255,255,0.25);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.mode-tab i{font-size:22px;display:block;}
+.mode-tab .tab-label{font-size:13px;font-weight:700;text-align:center;}
+.mode-tab .tag{font-size:10px;padding:2px 7px;border-radius:99px;font-weight:600;}
+.mode-tab.active .tag{background:rgba(255,255,255,0.25)!important;color:#fff!important;}
+.mode-tab .tag.ai-tag{background:var(--surface3);color:var(--text3);}
+.mode-tab .tag.sc-tag{background:#f0fdf4;color:#16a34a;}
+.mode-tab .tag.both-tag{background:var(--orange-pale);color:var(--orange);}
+
+/* Scraper status indicator */
+.scraper-status{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:1rem;}
+.scraper-status.online{background:var(--success-bg);color:var(--success);border:1px solid rgba(22,163,74,.2);}
+.scraper-status.offline{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(217,119,6,.2);}
+.scraper-status .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.scraper-status.online .dot{background:var(--success);animation:pulse 2s infinite;}
+.scraper-status.offline .dot{background:var(--warn);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* Limit control */
+.limit-row{display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap;}
+.limit-row label{font-size:12px;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.limit-btn{font-size:12px;padding:4px 12px;border:1.5px solid var(--border2);border-radius:99px;cursor:pointer;color:var(--text2);background:var(--surface);transition:all .15s;font-weight:500;}
+.limit-btn:hover{border-color:var(--purple);color:var(--purple);}
+.limit-btn.active{border-color:var(--purple);color:var(--purple);background:var(--purple-pale);font-weight:700;}
+
+.search-input-wrap{position:relative;margin-bottom:1rem;}
+.search-input-wrap .si-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:18px;pointer-events:none;}
+.search-input-wrap input{width:100%;padding:13px 145px 13px 44px;border:1.5px solid var(--border2);border-radius:10px;background:#FAFAFA;color:var(--text);font-size:15px;outline:none;transition:all .2s;}
+.search-input-wrap input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,45,142,0.1);background:var(--surface);}
+.search-input-wrap input::placeholder{color:var(--text3);}
+.btn-search{position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:8px 18px;background:linear-gradient(135deg,var(--purple),var(--purple-l));color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap;box-shadow:0 2px 8px rgba(91,45,142,0.3);}
+.btn-search:hover{opacity:.88;box-shadow:0 4px 14px rgba(91,45,142,.35);}
+.btn-search:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+
+/* City filter */
+.filter-row{display:flex;align-items:center;gap:7px;margin-bottom:1rem;flex-wrap:wrap;}
+.filter-label{font-size:12px;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.city-btn{font-size:12px;padding:5px 13px;border:1.5px solid var(--border2);border-radius:99px;cursor:pointer;color:var(--text2);background:var(--surface);transition:all .15s;font-weight:500;}
+.city-btn:hover{border-color:var(--purple);color:var(--purple);}
+.city-btn.active{border-color:var(--purple);color:var(--purple);background:var(--purple-pale);font-weight:700;}
+
+/* Quick chips */
+.chips-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;font-weight:600;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{font-size:12px;padding:5px 12px;border:1px solid var(--border);border-radius:99px;cursor:pointer;color:var(--text2);background:var(--purple-pale);transition:all .15s;}
+.chip:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-pale);}
+
+/* Status */
+.status-bar{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:1rem;min-height:24px;padding:0 2px;}
+.spin{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Scanning animation */
+.scan-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1rem;gap:14px;}
+.scan-ring{width:64px;height:64px;border-radius:50%;border:2px solid var(--border2);position:relative;display:flex;align-items:center;justify-content:center;background:var(--purple-pale);}
+.scan-ring::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--purple);border-right-color:var(--orange);animation:spin .9s linear infinite;}
+.scan-ring i{font-size:24px;color:var(--purple);}
+.scan-text{font-size:14px;color:var(--text2);font-weight:500;}
+.scan-steps{display:flex;flex-direction:column;gap:5px;width:100%;max-width:300px;}
+.scan-step{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:6px;}
+.scan-step.done{color:var(--success);background:var(--success-bg);}
+.scan-step.active{color:var(--purple);font-weight:600;background:var(--purple-pale);}
+
+.err{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(220,38,38,.2);border-radius:var(--rsm);padding:10px 14px;font-size:13px;margin-bottom:1rem;display:flex;align-items:flex-start;gap:8px;}
+
+/* Results */
+.results-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.results-count{font-size:13px;color:var(--text2);font-weight:500;display:flex;align-items:center;gap:7px;}
+.results-count .badge{background:linear-gradient(135deg,var(--purple),var(--orange));color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;}
+.results-actions{display:flex;gap:6px;}
+.btn-csv{padding:6px 14px;border:1.5px solid var(--border2);border-radius:var(--rsm);background:var(--surface);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;}
+.btn-csv:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-pale);}
+
+/* Source filter pills */
+.source-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.src-pill{font-size:11px;padding:3px 10px;border:1px solid var(--border2);border-radius:99px;cursor:pointer;color:var(--text3);background:var(--surface);transition:all .12s;font-weight:500;}
+.src-pill:hover{border-color:var(--purple);color:var(--purple);}
+.src-pill.active{background:var(--purple-pale);border-color:var(--purple);color:var(--purple);font-weight:700;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;transition:all .2s;animation:cardIn .3s ease both;box-shadow:0 1px 4px rgba(91,45,142,0.06);}
+.card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 6px 20px rgba(91,45,142,0.12);}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.c-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.c-name{font-size:14px;font-weight:700;line-height:1.3;color:var(--text);}
+.c-price{font-size:11px;font-weight:700;background:linear-gradient(135deg,var(--purple-pale),var(--orange-pale));color:var(--purple);border:1px solid rgba(91,45,142,.2);padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0;}
+.c-source{font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;margin-bottom:8px;display:inline-block;}
+.dist-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;display:inline-flex;align-items:center;gap:3px;}
+.dist-high{background:#dcfce7;color:#16a34a;}
+.dist-med{background:#fef3c7;color:#b45309;}
+.dist-low{background:#f1f0eb;color:#9b8ec0;}
+.src-google{background:#e8f0fe;color:#1a56db;}
+.src-indiamart{background:#fff7e6;color:#d97706;}
+.src-tradeindia{background:#f0fdf4;color:#16a34a;}
+.src-justdial{background:#fdf4ff;color:#7c3aed;}
+.src-sulekha{background:#fff1f2;color:#be123c;}
+.src-gemini{background:var(--purple-pale);color:var(--purple);}
+.c-div{height:1px;background:var(--border);margin:8px 0;}
+.c-row{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text2);margin-bottom:6px;}
+.c-row i{font-size:14px;flex-shrink:0;margin-top:1px;color:var(--text3);}
+.c-row span{line-height:1.45;word-break:break-word;}
+.c-row span.hi{color:var(--purple);font-weight:600;}
+.c-note{font-size:11px;color:var(--warn);background:var(--warn-bg);border:1px solid rgba(217,119,6,.15);border-radius:6px;padding:5px 9px;margin-top:6px;line-height:1.4;}
+.c-foot{margin-top:10px;}
+.c-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--purple);border:1.5px solid rgba(91,45,142,.2);border-radius:var(--rsm);padding:4px 10px;text-decoration:none;font-weight:500;transition:all .15s;}
+.c-link:hover{background:var(--purple-pale);border-color:var(--purple);}
+
+/* Sidebar */
+.side-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(91,45,142,0.05);}
+.side-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.8px;}
+.h-item{font-size:12px;color:var(--text2);padding:6px 8px;border-radius:var(--rsm);cursor:pointer;display:flex;align-items:flex-start;gap:6px;margin-bottom:1px;transition:all .12s;line-height:1.35;}
+.h-item:hover{background:var(--purple-pale);color:var(--purple);}
+.h-item i{flex-shrink:0;margin-top:2px;font-size:12px;color:var(--text3);}
+.h-empty{font-size:12px;color:var(--text3);padding:4px 8px;}
+.btn-clear{font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;margin-top:6px;padding:2px 8px;font-weight:500;}
+.btn-clear:hover{color:var(--danger);}
+
+/* Empty */
+.empty{text-align:center;padding:3rem 1rem;color:var(--text3);}
+.empty-icon{font-size:44px;display:block;margin-bottom:12px;opacity:.35;color:var(--purple);}
+.empty p{font-size:14px;line-height:1.7;color:var(--text2);}
+
+/* Settings */
+.settings-page{max-width:660px;margin:0 auto;padding:2rem 1.5rem;}
+.settings-header{margin-bottom:2rem;}
+.settings-header h2{font-size:22px;font-weight:800;color:var(--purple);margin-bottom:4px;}
+.settings-header p{font-size:13px;color:var(--text2);}
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem 1.5rem 1.5rem 1.75rem;margin-bottom:1.25rem;box-shadow:0 1px 5px rgba(91,45,142,0.06);position:relative;overflow:hidden;}
+.settings-section::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:linear-gradient(180deg,var(--purple),var(--orange));}
+.sec-title{font-size:12px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.7px;margin-bottom:1.1rem;display:flex;align-items:center;gap:7px;}
+.field{margin-bottom:1rem;}
+.field label{font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:6px;}
+.field input{width:100%;padding:10px 13px;border:1.5px solid var(--border2);border-radius:var(--rsm);background:#FAFAFA;color:var(--text);font-size:13px;font-family:monospace;outline:none;transition:all .2s;}
+.field input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,45,142,0.1);}
+.key-actions{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.btn-primary{padding:9px 20px;background:linear-gradient(135deg,var(--purple),var(--purple-l));color:#fff;border:none;border-radius:var(--rsm);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(91,45,142,0.3);transition:all .2s;}
+.btn-primary:hover{opacity:.9;}
+.btn-danger{padding:9px 16px;background:var(--danger-bg);color:var(--danger);border:1px solid rgba(220,38,38,.2);border-radius:var(--rsm);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-danger:hover{background:rgba(220,38,38,.15);}
+.key-status-lg{font-size:13px;display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:var(--rsm);font-weight:500;}
+.key-status-lg.ok{background:var(--success-bg);color:var(--success);border:1px solid rgba(22,163,74,.2);}
+.key-status-lg.no{background:var(--orange-pale);color:var(--orange);border:1px solid rgba(249,115,22,.25);}
+.setup-steps{display:flex;flex-direction:column;gap:10px;margin-top:.5rem;}
+.step-item{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:var(--purple-pale);border-radius:var(--rsm);}
+.step-num{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--orange));color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:13px;color:var(--text2);line-height:1.5;}
+.step-text a{color:var(--purple);text-decoration:none;font-weight:600;}
+.step-text code{background:var(--surface3);padding:1px 6px;border-radius:4px;font-size:12px;font-family:monospace;color:var(--purple);}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.info-item{background:var(--purple-pale);border-radius:var(--rsm);padding:12px 14px;border:1px solid var(--border);}
+.info-item .val{font-size:20px;font-weight:800;color:var(--purple);margin-bottom:2px;}
+.info-item .lbl{font-size:11px;color:var(--text3);font-weight:500;}
+
+@media(max-width:720px){
+  .page{flex-direction:column;}.sidebar{width:100%;}
+  header{padding:0 1rem;}.page{padding:1rem;}.hero h1{font-size:19px;}
+  .btn-search{position:static;transform:none;width:100%;justify-content:center;margin-top:8px;padding:11px;}
+  .search-input-wrap input{padding-right:14px;}
+}
+
+/* ── Login screen ── */
+#loginScreen{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1rem;}
+#loginScreen.hide{display:none;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:2.5rem 2rem;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(91,45,142,0.15);position:relative;overflow:hidden;}
+.login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--purple),var(--orange));}
+.login-logo{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--purple),var(--orange));display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 1.25rem;box-shadow:0 4px 16px rgba(91,45,142,0.3);}
+.login-card h2{font-size:20px;font-weight:800;color:var(--purple);text-align:center;margin-bottom:4px;}
+.login-card .login-sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:1.75rem;}
+.login-field{margin-bottom:1rem;}
+.login-field label{font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:6px;}
+.login-field input{width:100%;padding:11px 13px;border:1.5px solid var(--border2);border-radius:8px;background:#FAFAFA;color:var(--text);font-size:14px;outline:none;transition:all .2s;}
+.login-field input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,45,142,0.1);background:var(--surface);}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--purple),var(--purple-l));color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 10px rgba(91,45,142,0.3);transition:all .2s;margin-top:.5rem;}
+.login-btn:hover{opacity:.9;}
+.login-btn:disabled{opacity:.5;cursor:not-allowed;}
+.login-error{font-size:13px;color:var(--danger);background:var(--danger-bg);border:1px solid rgba(220,38,38,.2);border-radius:8px;padding:9px 12px;margin-bottom:1rem;display:none;align-items:center;gap:6px;}
+.login-error.show{display:flex;}
+.logout-btn{font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:5px;padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);transition:all .15s;}
+.logout-btn:hover{border-color:var(--danger);color:var(--danger);}
+.user-badge{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:5px;padding:0 4px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-receipt-2"></i></div>
+    <h2>Material Price &amp; Vendor Finder</h2>
+    <p class="login-sub">Sign in to continue</p>
+    <div class="login-error" id="loginError"><i class="ti ti-alert-circle"></i><span id="loginErrorText"></span></div>
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="loginUser" placeholder="your username" autocomplete="username"/>
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="your password" autocomplete="current-password"/>
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()"><i class="ti ti-login"></i> Sign In</button>
+  </div>
+</div>
+<div class="bg-pattern"></div>
+<div class="bg-orb bg-orb1"></div>
+<div class="bg-orb bg-orb2"></div>
+
+<div id="splash">
+  <div class="splash-ring"><i class="ti ti-receipt-2"></i></div>
+  <div class="splash-title">Material Price &amp; <span>Vendor Finder</span></div>
+  <div class="splash-sub">AI + Web Scraper</div>
+  <div class="splash-bar"><div class="splash-fill"></div></div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"><i class="ti ti-receipt-2"></i></div>
+    <div>
+      <div class="logo-text">Material Price &amp; <span>Vendor</span> Finder</div>
+      <div class="logo-tag">Gemini AI + Web Scraper · India</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="user-badge" id="userBadge"><i class="ti ti-user"></i> <span id="userName"></span></span>
+    <button class="hdr-btn active" id="btnHome" onclick="showView('home')" title="Home"><i class="ti ti-home"></i></button>
+    <button class="hdr-btn" id="btnSettings" onclick="showView('settings')" title="Settings">
+      <i class="ti ti-settings"></i>
+      <span class="key-dot no" id="keyDot"></span>
+    </button>
+    <button class="logout-btn" onclick="doLogout()" title="Sign out"><i class="ti ti-logout"></i> Logout</button>
+  </div>
+</header>
+
+<!-- HOME -->
+<div class="view active" id="viewHome">
+<div class="page">
+  <div class="main">
+    <div class="hero">
+      <h1>Find Any Material · Any Vendor · <span>Best Price</span></h1>
+      <p>Choose AI search (fast) or Web Scraper (more results) — or run both together</p>
+    </div>
+
+    <div class="no-key-banner" id="noKeyBanner" onclick="showView('settings')" style="display:none;">
+      <i class="ti ti-alert-triangle" style="font-size:18px;flex-shrink:0;"></i>
+      <span>Gemini API key not set. Click here → Settings to add it free.</span>
+      <i class="ti ti-chevron-right" style="margin-left:auto;"></i>
+    </div>
+
+    <div class="search-card">
+
+      <!-- Mode tabs -->
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabAI" onclick="setMode('ai')">
+          <i class="ti ti-sparkles"></i>
+          <span class="tab-label">Gemini AI</span>
+          <span class="tag ai-tag">Fast · 3–6</span>
+        </button>
+        <button class="mode-tab" id="tabScraper" onclick="setMode('scraper')">
+          <i class="ti ti-world-search"></i>
+          <span class="tab-label">Web Scraper</span>
+          <span class="tag sc-tag">Deep · 10–15</span>
+        </button>
+        <button class="mode-tab" id="tabBoth" onclick="setMode('both')">
+          <i class="ti ti-arrows-shuffle"></i>
+          <span class="tab-label">Both</span>
+          <span class="tag both-tag">Max results</span>
+        </button>
+      </div>
+
+      <!-- Scraper status -->
+      <div class="scraper-status offline" id="scraperStatus">
+        <div class="dot"></div>
+        <span id="scraperStatusText">Web Scraper: checking server…</span>
+        <a href="#" onclick="checkScraperHealth();return false;" style="margin-left:auto;font-size:11px;color:inherit;text-decoration:underline;">Refresh</a>
+      </div>
+
+      <!-- Limit selector (scraper only) -->
+      <div class="limit-row" id="limitRow" style="display:none;">
+        <span class="filter-label"><i class="ti ti-list-numbers" style="font-size:13px;color:var(--purple)"></i> Max vendors:</span>
+        <button class="limit-btn" onclick="setLimit(10)" id="lim10">10</button>
+        <button class="limit-btn active" onclick="setLimit(15)" id="lim15">15</button>
+        <button class="limit-btn" onclick="setLimit(20)" id="lim20">20</button>
+        <button class="limit-btn" onclick="setLimit(30)" id="lim30">30</button>
+        <button class="limit-btn" onclick="setLimit(40)" id="lim40">40</button>
+        <button class="limit-btn" onclick="setLimit(50)" id="lim50">50</button>
+        <button class="limit-btn" onclick="setLimit(75)" id="lim75">75</button>
+        <button class="limit-btn" onclick="setLimit(100)" id="lim100">100</button>
+        <span style="font-size:11px;color:var(--text3);margin-left:4px;">Higher = slower</span>
+      </div>
+
+      <!-- Search input -->
+      <div class="search-input-wrap">
+        <i class="ti ti-search si-icon"></i>
+        <input type="text" id="qInput" placeholder="e.g. Glossy white paper 230 gsm A4, Kraft paper 120gsm…"/>
+        <button class="btn-search" id="searchBtn" onclick="doSearch()">
+          <i class="ti ti-sparkles"></i> Find Prices
+        </button>
+      </div>
+
+      <!-- City filter -->
+      <div class="filter-row">
+        <span class="filter-label"><i class="ti ti-map-pin" style="font-size:13px;color:var(--purple)"></i> City:</span>
+        <button class="city-btn all active" id="cityAll" onclick="setCity('All')">All India</button>
+        <button class="city-btn" id="cityBengaluru" onclick="setCity('Bengaluru')">Bengaluru</button>
+        <button class="city-btn" id="cityChennai" onclick="setCity('Chennai')">Chennai</button>
+        <button class="city-btn" id="cityHyderabad" onclick="setCity('Hyderabad')">Hyderabad</button>
+        <button class="city-btn" id="cityDelhi" onclick="setCity('Delhi (NCR)')">Delhi (NCR)</button>
+      </div>
+
+      <div class="filter-row">
+        <span class="filter-label"><i class="ti ti-building-warehouse" style="font-size:13px;color:var(--purple)"></i> Vendor type:</span>
+        <button class="city-btn active" id="vtAll" onclick="setVendorType(false)">All vendors</button>
+        <button class="city-btn" id="vtDist" onclick="setVendorType(true)">Distributors &amp; wholesalers only</button>
+        <span style="font-size:11px;color:var(--text3);margin-left:4px;">excludes marketplaces</span>
+      </div>
+
+      <div class="chips-label">Quick search</div>
+      <div class="chips">
+        <span class="chip" onclick="quick('Glossy white paper 230 gsm A4')">Glossy white 230gsm</span>
+        <span class="chip" onclick="quick('Matte coated paper 170 gsm')">Matte coated 170gsm</span>
+        <span class="chip" onclick="quick('Bond paper 80 gsm A4')">Bond A4 80gsm</span>
+        <span class="chip" onclick="quick('Art paper 300 gsm')">Art paper 300gsm</span>
+        <span class="chip" onclick="quick('Kraft paper 120 gsm bulk')">Kraft 120gsm</span>
+        <span class="chip" onclick="quick('Offset printing paper 90 gsm')">Offset 90gsm</span>
+        <span class="chip" onclick="quick('Thermal paper roll 80mm')">Thermal roll 80mm</span>
+        <span class="chip" onclick="quick('Corrugated box 5 ply')">Corrugated box</span>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar"></div>
+    <div id="errArea"></div>
+    <div id="resArea">
+      <div class="empty">
+        <span class="empty-icon"><i class="ti ti-building-store"></i></span>
+        <p>Use <strong>Gemini AI</strong> for quick results,<br>or <strong>Web Scraper</strong> for deeper search across the internet.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="side-box">
+      <div class="side-title"><i class="ti ti-history" style="color:var(--purple)"></i> Recent Searches</div>
+      <div id="histList"><p class="h-empty">No searches yet.</p></div>
+      <button class="btn-clear" onclick="clearHist()">Clear history</button>
+    </div>
+    <div class="side-box">
+      <div class="side-title"><i class="ti ti-chart-bar" style="color:var(--purple)"></i> This Session</div>
+      <div style="font-size:12px;color:var(--text2);line-height:2;">
+        AI searches: <strong id="statAI">0</strong><br>
+        Scraper searches: <strong id="statSC">0</strong><br>
+        Total vendors found: <strong id="statVendors">0</strong>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div class="view" id="viewSettings">
+<div class="settings-page">
+  <div class="settings-header">
+    <h2>Settings</h2>
+    <p>Configure API key and scraper backend</p>
+  </div>
+
+  <div class="settings-section">
+    <div class="sec-title"><i class="ti ti-key"></i> Gemini API Key (for AI mode)</div>
+    <div class="key-status-lg no" id="keyStatusLg"><i class="ti ti-alert-circle"></i> No API key saved</div>
+    <div class="field" style="margin-top:1rem;">
+      <label>Paste your Google Gemini API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="AIza…"/>
+    </div>
+    <div class="key-actions">
+      <button class="btn-primary" onclick="saveKey()"><i class="ti ti-device-floppy"></i> Save Key</button>
+      <button class="btn-danger" onclick="deleteKey()"><i class="ti ti-trash"></i> Delete</button>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-top:10px;">Stored only in your browser. Never uploaded anywhere.</div>
+  </div>
+
+  <div class="settings-section">
+    <div class="sec-title"><i class="ti ti-cloud-check"></i> Web Scraper (Cloud)</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.6;">The Web Scraper runs automatically on the server — no setup needed. It searches the entire internet via Google for vendors.</div>
+    <div class="scraper-status offline" id="scraperStatusSettings">
+      <div class="dot"></div><span id="scraperStatusSettingsText">Checking…</span>
+    </div>
+    <div style="margin-top:1rem;">
+      <button class="btn-primary" onclick="checkScraperHealth()"><i class="ti ti-refresh"></i> Test Connection</button>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="sec-title"><i class="ti ti-user-circle"></i> Account</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;">Signed in as <strong id="settingsUser">—</strong></div>
+    <button class="btn-danger" onclick="doLogout()"><i class="ti ti-logout"></i> Sign Out</button>
+  </div>
+
+  <div class="settings-section">
+    <div class="sec-title"><i class="ti ti-info-circle"></i> How to get Free Gemini API Key</div>
+    <div class="setup-steps">
+      <div class="step-item"><div class="step-num">1</div><div class="step-text">Go to <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></div></div>
+      <div class="step-item"><div class="step-num">2</div><div class="step-text">Sign in with Gmail — no credit card needed</div></div>
+      <div class="step-item"><div class="step-num">3</div><div class="step-text">Click <strong>"Create API key"</strong> and copy it</div></div>
+      <div class="step-item"><div class="step-num">4</div><div class="step-text">Paste above and click Save Key</div></div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="sec-title"><i class="ti ti-chart-bar"></i> Free Limits</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="val">1,500</div><div class="lbl">Gemini AI searches/day</div></div>
+      <div class="info-item"><div class="val">2,500</div><div class="lbl">Serper searches (total free)</div></div>
+      <div class="info-item"><div class="val">3–6</div><div class="lbl">Gemini results/search</div></div>
+      <div class="info-item"><div class="val">10–20</div><div class="lbl">Scraper results/search</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+let hist=JSON.parse(localStorage.getItem('ppf_hist')||'[]');
+let lastRes=[];
+let activeCity='All';
+let activeMode='ai';
+let activeLimit=15;
+let activeDistOnly=false;
+function setVendorType(distOnly){
+  activeDistOnly=distOnly;
+  document.getElementById('vtAll').classList.toggle('active',!distOnly);
+  document.getElementById('vtDist').classList.toggle('active',distOnly);
+}
+let scraperOnline=false;
+let stats={ai:0,sc:0,vendors:0};
+
+const SCRAPER_URL='';  // same server
+
+window.addEventListener('load',()=>{
+  checkAuth();
+  // Allow Enter key to submit login
+  document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();});
+});
+
+// ── Auth ──
+async function checkAuth(){
+  try{
+    const r=await fetch('/api/me',{credentials:'include'});
+    const d=await r.json();
+    if(d.loggedIn){
+      showApp(d.user);
+    }else{
+      document.getElementById('loginScreen').classList.remove('hide');
+      document.getElementById('splash').classList.add('hide');
+    }
+  }catch(e){
+    document.getElementById('loginScreen').classList.remove('hide');
+    document.getElementById('splash').classList.add('hide');
+  }
+}
+
+function showApp(user){
+  document.getElementById('loginScreen').classList.add('hide');
+  document.getElementById('userName').textContent=user;
+  // Run splash then init
+  setTimeout(()=>{document.getElementById('splash').classList.add('hide');checkKey();checkScraperHealth();},1500);
+}
+
+async function doLogin(){
+  const u=document.getElementById('loginUser').value.trim();
+  const p=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginError');
+  const btn=document.getElementById('loginBtn');
+  if(!u||!p){
+    err.classList.add('show');
+    document.getElementById('loginErrorText').textContent='Enter username and password';
+    return;
+  }
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader"></i> Signing in…';
+  try{
+    const r=await fetch('/api/login',{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u,password:p})
+    });
+    const d=await r.json();
+    if(d.ok){
+      err.classList.remove('show');
+      document.getElementById('splash').classList.remove('hide');
+      showApp(d.user);
+    }else{
+      err.classList.add('show');
+      document.getElementById('loginErrorText').textContent=d.error||'Login failed';
+    }
+  }catch(e){
+    err.classList.add('show');
+    document.getElementById('loginErrorText').textContent='Connection error. Try again.';
+  }finally{
+    btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i> Sign In';
+  }
+}
+
+async function doLogout(){
+  await fetch('/api/logout',{method:'POST',credentials:'include'});
+  location.reload();
+}
+
+// ── Views ──
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.hdr-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');
+  document.getElementById('btn'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');
+  if(v==='settings')syncSettingsUI();
+}
+
+// ── Key ──
+function checkKey(){
+  const k=localStorage.getItem('ppf_key');
+  document.getElementById('keyDot').className='key-dot '+(k?'ok':'no');
+  document.getElementById('noKeyBanner').style.display=k?'none':'flex';
+}
+function syncSettingsUI(){
+  const k=localStorage.getItem('ppf_key');
+  const el=document.getElementById('keyStatusLg');
+  if(k){el.className='key-status-lg ok';el.innerHTML='<i class="ti ti-circle-check"></i> Gemini API key saved and active';document.getElementById('apiKeyInput').value=k;}
+  else{el.className='key-status-lg no';el.innerHTML='<i class="ti ti-alert-circle"></i> No Gemini API key saved';}
+  // show signed-in username
+  const su=document.getElementById('settingsUser');
+  if(su) su.textContent=document.getElementById('userName').textContent||'—';
+}
+function saveKey(){
+  const k=document.getElementById('apiKeyInput').value.trim();
+  if(!k){alert('Please paste your API key.');return;}
+  localStorage.setItem('ppf_key',k);syncSettingsUI();checkKey();
+  alert('✓ API key saved!');
+}
+function deleteKey(){
+  if(!confirm('Delete saved Gemini API key?'))return;
+  localStorage.removeItem('ppf_key');document.getElementById('apiKeyInput').value='';syncSettingsUI();checkKey();
+}
+
+// ── Scraper health ──
+async function checkScraperHealth(){
+  const s1=document.getElementById('scraperStatus');
+  const t1=document.getElementById('scraperStatusText');
+  const s2=document.getElementById('scraperStatusSettings');
+  const t2=document.getElementById('scraperStatusSettingsText');
+  const setStatus=(online)=>{
+    scraperOnline=online;
+    const cls=online?'scraper-status online':'scraper-status offline';
+    const msg=online?'Web Scraper: Online and ready':'Web Scraper: Server not configured';
+    if(s1){s1.className=cls;t1.textContent=msg;}
+    if(s2){s2.className=cls;t2.textContent=online?'Cloud scraper is online':'Server missing Serper key — contact admin';}
+  };
+  try{
+    const r=await fetch(`/api/health`,{credentials:'include',signal:AbortSignal.timeout(4000)});
+    const d=await r.json();
+    setStatus(r.ok && d.status==='running' && d.serper_configured);
+  }catch(e){setStatus(false);}
+}
+
+// ── Mode ──
+function setMode(mode){
+  activeMode=mode;
+  const tabMap={ai:'tabAI',scraper:'tabScraper',both:'tabBoth'};
+  Object.keys(tabMap).forEach(m=>{
+    const el=document.getElementById(tabMap[m]);
+    if(el) el.classList.toggle('active',m===mode);
+  });
+  const showLimit=mode==='scraper'||mode==='both';
+  document.getElementById('limitRow').style.display=showLimit?'flex':'none';
+  const btn=document.getElementById('searchBtn');
+  if(mode==='ai') btn.innerHTML='<i class="ti ti-sparkles"></i> Find Prices';
+  else if(mode==='scraper') btn.innerHTML='<i class="ti ti-world-search"></i> Scrape Web';
+  else btn.innerHTML='<i class="ti ti-arrows-shuffle"></i> Find All';
+}
+
+// ── Limit ──
+function setLimit(n){
+  activeLimit=n;
+  [10,15,20,30,40,50,75,100].forEach(v=>document.getElementById('lim'+v).classList.toggle('active',v===n));
+}
+
+// ── City ──
+function setCity(city){
+  activeCity=city;
+  document.querySelectorAll('.city-btn').forEach(b=>b.classList.remove('active'));
+  const id='city'+city.replace(/[^a-zA-Z]/g,'');
+  const btn=document.getElementById(id);
+  if(btn)btn.classList.add('active');
+}
+
+function quick(t){document.getElementById('qInput').value=t;doSearch();}
+
+// ── Main search ──
+async function doSearch(){
+  const q=document.getElementById('qInput').value.trim();
+  if(!q){alert('Please enter a material to search.');return;}
+
+  const useAI=activeMode==='ai'||activeMode==='both';
+  const useScraper=activeMode==='scraper'||activeMode==='both';
+
+  if(useAI && !localStorage.getItem('ppf_key')){
+    showView('settings');return;
+  }
+  if(useScraper && !scraperOnline){
+    alert('Web Scraper server is offline.\n\nPlease double-click START_SCRAPER.bat and keep the CMD window open, then try again.');
+    return;
+  }
+
+
+  const btn=document.getElementById('searchBtn');
+  const statusBar=document.getElementById('statusBar');
+  const errArea=document.getElementById('errArea');
+  const resArea=document.getElementById('resArea');
+  const cityLabel=activeCity==='All'?'across India':`in ${activeCity}`;
+
+  btn.disabled=true;errArea.innerHTML='';
+
+  // Build scan steps based on mode
+  let steps='';
+  if(useAI) steps+=`<div class="scan-step" id="ssAI"><i class="ti ti-sparkles"></i> Gemini AI search…</div>`;
+  if(useScraper){
+    steps+=`<div class="scan-step" id="ssG"><i class="ti ti-brand-google"></i> Google web scan…</div>`;
+    steps+=`<div class="scan-step" id="ssIM"><i class="ti ti-building-store"></i> IndiaMART…</div>`;
+    steps+=`<div class="scan-step" id="ssTI"><i class="ti ti-building-store"></i> TradeIndia…</div>`;
+    steps+=`<div class="scan-step" id="ssJD"><i class="ti ti-map-search"></i> JustDial…</div>`;
+    steps+=`<div class="scan-step" id="ssSL"><i class="ti ti-search"></i> Sulekha…</div>`;
+  }
+  steps+=`<div class="scan-step" id="ssMerge"><i class="ti ti-filter"></i> Deduplicating results…</div>`;
+
+  resArea.innerHTML=`<div class="scan-wrap">
+    <div class="scan-ring"><i class="ti ti-world-search"></i></div>
+    <div class="scan-text">Scanning vendors ${cityLabel}…</div>
+    <div class="scan-steps">${steps}</div>
+  </div>`;
+  statusBar.innerHTML='';
+
+  let aiVendors=[];
+  let scraperVendors=[];
+
+  // ── Run AI ──
+  if(useAI){
+    const ss=document.getElementById('ssAI');
+    if(ss)ss.classList.add('active');
+    try{
+      aiVendors=await runGemini(q,activeCity);
+      aiVendors=aiVendors.map(v=>({...v,source:'Gemini AI'}));
+      if(ss){ss.classList.remove('active');ss.classList.add('done');ss.querySelector('i').className='ti ti-check';}
+      stats.ai++;
+    }catch(e){
+      if(ss){ss.classList.remove('active');ss.querySelector('i').className='ti ti-x';}
+    }
+  }
+
+  // ── Run Scraper ──
+  if(useScraper){
+    const stepIds=['ssG','ssIM','ssTI','ssJD','ssSL'];
+    // Activate first step
+    stepIds.forEach((id,i)=>{
+      const el=document.getElementById(id);
+      if(el && i===0) el.classList.add('active');
+    });
+
+    try{
+      // Animate steps during fetch
+      let si=0;
+      const stepTimer=setInterval(()=>{
+        si++;
+        if(si<stepIds.length){
+          const prev=document.getElementById(stepIds[si-1]);
+          const curr=document.getElementById(stepIds[si]);
+          if(prev){prev.classList.remove('active');prev.classList.add('done');prev.querySelector('i').className='ti ti-check';}
+          if(curr)curr.classList.add('active');
+        }else{
+          clearInterval(stepTimer);
+        }
+      },1800);
+
+      const resp=await fetch(`/api/scrape?q=${encodeURIComponent(q)}&city=${encodeURIComponent(activeCity)}&limit=${activeLimit}&distributors_only=${activeDistOnly?'1':'0'}`,{credentials:'include'});
+      clearInterval(stepTimer);
+
+      if(resp.status===401){location.reload();return;}
+      if(!resp.ok) throw new Error(`Scraper error ${resp.status}`);
+      const data=await resp.json();
+      scraperVendors=data.vendors||[];
+
+      // Mark all scraper steps done
+      stepIds.forEach(id=>{
+        const el=document.getElementById(id);
+        if(el){el.classList.remove('active');el.classList.add('done');if(el.querySelector('i'))el.querySelector('i').className='ti ti-check';}
+      });
+      stats.sc++;
+    }catch(e){
+      stepIds.forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.classList.remove('active');
+      });
+    }
+  }
+
+  // ── Merge & deduplicate ──
+  const mergeSS=document.getElementById('ssMerge');
+  if(mergeSS) mergeSS.classList.add('active');
+
+  const combined=[...aiVendors,...scraperVendors];
+  // Deduplicate by name
+  const seen=new Set();
+  const merged=combined.filter(v=>{
+    const k=v.vendorName.toLowerCase().slice(0,25);
+    if(seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  if(mergeSS){mergeSS.classList.remove('active');mergeSS.classList.add('done');}
+
+  lastRes=merged;
+  stats.vendors+=merged.length;
+  updateStats();
+  addHist(q);
+  renderResults(merged,q);
+
+  const aiCount=aiVendors.length;
+  const scCount=scraperVendors.length;
+  let msg=`<i class="ti ti-circle-check" style="color:var(--success)"></i>&nbsp;Found <strong>${merged.length} vendor${merged.length!==1?'s':''}</strong> ${cityLabel}`;
+  if(activeMode==='both') msg+=` &nbsp;<span style="font-size:11px;color:var(--text3)">(AI: ${aiCount} · Scraper: ${scCount})</span>`;
+  statusBar.innerHTML=msg;
+
+  btn.disabled=false;
+}
+
+// ── Gemini AI search ──
+async function runGemini(q,city){
+  const key=localStorage.getItem('ppf_key');
+  const cityInstr=city==='All'?'Focus on Bengaluru, Mumbai, Delhi, Chennai, Hyderabad.':`Focus ONLY on vendors in ${city}.`;
+  const distInstr=activeDistOnly
+    ? 'IMPORTANT: Return ONLY genuine distributors, wholesalers, authorised dealers, importers, or manufacturers. DO NOT include marketplaces (IndiaMART, JustDial, TradeIndia, Sulekha), retailers, Amazon, or Flipkart. For each vendor set "distributor" to "High", "Medium", or "Low".'
+    : 'For each vendor set "distributor" to "High", "Medium", or "Low" based on whether it looks like a distributor/wholesaler (High) or a shop/retailer (Low).';
+  const body={
+    contents:[{parts:[{text:`Find vendors selling: "${q}"
+Search the web. ${cityInstr}
+${distInstr}
+Return ONLY a JSON array — no markdown, no backticks.
+[{"vendorName":"name","price":"₹amount or Contact for quote","address":"city,state","contact":"phone/email or Not listed","website":"https://url or empty","notes":"details or empty","distributor":"High|Medium|Low"}]
+Find 4-6 vendors. Return ONLY the JSON array.`}]}],
+    tools:[{google_search:{}}],
+    generationConfig:{temperature:0.1}
+  };
+  const res=await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}
+  );
+  const data=await res.json();
+  if(!res.ok) throw new Error(data?.error?.message||`API error ${res.status}`);
+  const raw=(data?.candidates?.[0]?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('');
+  const cleaned=raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+  let vendors=[];
+  try{vendors=JSON.parse(cleaned);}
+  catch{const m=cleaned.match(/\[[\s\S]*\]/);if(m)vendors=JSON.parse(m[0]);}
+  if(activeDistOnly){
+    vendors=vendors.filter(v=>{const d=(v.distributor||'').toLowerCase();return d==='high'||d==='medium';});
+  }
+  return vendors;
+}
+
+// ── Render results ──
+function renderResults(vendors,q){
+  const area=document.getElementById('resArea');
+  if(!vendors?.length){
+    area.innerHTML=`<div class="empty"><span class="empty-icon"><i class="ti ti-mood-sad"></i></span><p>No vendors found. Try different keywords or switch search mode.</p></div>`;
+    return;
+  }
+
+  // Build source filter pills
+  const sources=[...new Set(vendors.map(v=>v.source||'Unknown').filter(Boolean))];
+  let pills=`<div class="source-filters"><span class="src-pill active" onclick="filterSource('all',this)">All (${vendors.length})</span>`;
+  sources.forEach(s=>{ pills+=`<span class="src-pill" onclick="filterSource('${s}',this)">${s} (${vendors.filter(v=>v.source===s).length})</span>`; });
+  pills+=`</div>`;
+
+  let html=`<div class="results-head">
+    <div class="results-count"><span class="badge">${vendors.length}</span> vendor${vendors.length!==1?'s':''} found</div>
+    <div class="results-actions">
+      <button class="btn-csv" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
+    </div>
+  </div>${pills}<div class="grid" id="vendorGrid">`;
+
+  vendors.forEach((v,i)=>{
+    const hasUrl=v.website?.trim()&&v.website!=='Not listed'&&v.website.startsWith('http');
+    const src=v.source||'';
+    const srcClass=src.includes('Google')?'src-google':src.includes('IndiaMART')?'src-indiamart':src.includes('TradeIndia')?'src-tradeindia':src.includes('JustDial')?'src-justdial':src.includes('Sulekha')?'src-sulekha':'src-gemini';
+    const dist=(v.distributor||'').toLowerCase();
+    let distBadge='';
+    if(dist==='high') distBadge=`<span class="dist-badge dist-high"><i class="ti ti-circle-check" style="font-size:10px"></i> Distributor</span>`;
+    else if(dist==='medium') distBadge=`<span class="dist-badge dist-med"><i class="ti ti-help-circle" style="font-size:10px"></i> Likely distributor</span>`;
+    else if(dist==='low') distBadge=`<span class="dist-badge dist-low"><i class="ti ti-building-store" style="font-size:10px"></i> Unverified</span>`;
+    html+=`<div class="card" style="animation-delay:${i*50}ms" data-source="${src}">
+      <div class="c-head"><div class="c-name">${esc(v.vendorName||'Unknown Vendor')}</div><div class="c-price">${esc(v.price||'N/A')}</div></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;"><span class="c-source ${srcClass}" style="margin-bottom:0">${esc(src||'AI')}</span>${distBadge}</div>
+      <div class="c-div"></div>
+      <div class="c-row"><i class="ti ti-map-pin"></i><span>${esc(v.address||'Not listed')}</span></div>
+      <div class="c-row"><i class="ti ti-phone"></i><span class="${v.contact&&v.contact!=='Not listed'&&v.contact!=='Visit website'?'hi':''}">${esc(v.contact||'Not listed')}</span></div>
+      ${v.notes?`<div class="c-note"><i class="ti ti-info-circle" style="font-size:11px;margin-right:4px;"></i>${esc(v.notes.substring(0,180))}</div>`:''}
+      ${hasUrl?`<div class="c-foot"><a class="c-link" href="${esc(v.website)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Visit website</a></div>`:''}
+    </div>`;
+  });
+  area.innerHTML=html+'</div>';
+}
+
+function filterSource(src,el){
+  document.querySelectorAll('.src-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#vendorGrid .card').forEach(c=>{
+    c.style.display=(src==='all'||c.dataset.source===src)?'':'none';
+  });
+}
+
+function updateStats(){
+  document.getElementById('statAI').textContent=stats.ai;
+  document.getElementById('statSC').textContent=stats.sc;
+  document.getElementById('statVendors').textContent=stats.vendors;
+}
+
+function exportCSV(){
+  if(!lastRes.length)return;
+  const hdr=['Vendor Name','Price','Address','Contact','Website','Source','Distributor','Notes'];
+  const rows=lastRes.map(v=>[v.vendorName,v.price,v.address,v.contact,v.website,v.source,v.distributor,v.notes].map(c=>`"${(c||'').replace(/"/g,'""')}"`).join(','));
+  const blob=new Blob([[hdr.join(','),...rows].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`vendors_${Date.now()}.csv`;a.click();
+}
+
+function addHist(q){hist=[q,...hist.filter(h=>h!==q)].slice(0,15);localStorage.setItem('ppf_hist',JSON.stringify(hist));renderHist();}
+function renderHist(){
+  const el=document.getElementById('histList');
+  if(!hist.length){el.innerHTML='<p class="h-empty">No searches yet.</p>';return;}
+  el.innerHTML=hist.map(q=>`<div class="h-item" onclick="quick(${JSON.stringify(q)})"><i class="ti ti-clock"></i>${esc(q)}</div>`).join('');
+}
+function clearHist(){hist=[];localStorage.removeItem('ppf_hist');renderHist();}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+document.getElementById('qInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+</script>
+</body>
+</html>

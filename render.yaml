@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: material-vendor-finder
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SERPER_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: LOGIN_SALT
+        generateValue: true
