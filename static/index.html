@@ -1125,7 +1125,7 @@ function renderBulk(){
       html+=`<div class="bulk-mat-group">
         <div class="bulk-mat-head"><span>${esc(r.material)}</span><span class="count">${r.vendors.length} vendor${r.vendors.length!==1?'s':''} · ${esc(r.city)}</span></div>`;
       if(r.vendors.length){
-        html+=`<table class="bulk-table"><thead><tr><th>Vendor</th><th>Price</th><th>Contact</th><th>Location</th><th>Type</th></tr></thead><tbody>`;
+        html+=`<table class="bulk-table"><thead><tr><th>Vendor</th><th>Price</th><th>Contact</th><th>Location</th><th>Distributor (%)</th></tr></thead><tbody>`;
         r.vendors.forEach((v,idx)=>{
           const dist=(v.distributor||'');
           html+=`<tr class="${idx===0?'best':''}"><td><strong>${esc(v.vendorName)}</strong></td><td>${esc(v.price||'—')}</td><td>${esc(v.contact||'—')}</td><td>${esc(v.address||'—')}</td><td>${esc(dist||'—')}</td></tr>`;
