@@ -44,17 +44,10 @@ def hash_pw(password):
 # username : password-hash
 # Default password for all three below is shown in comments — CHANGE THESE.
 USERS = {
-    "mohan.w@printo.in":   hash_pw("Printo@123"),    # password: Printo@123
-    "karunya.s@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "gayathri.b@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "shivaraj.p@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "jessu.u@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "hamsa.v@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "manish.s@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-
+    "mohan":   hash_pw("printo123"),    # password: printo123
+    "team1":   hash_pw("welcome123"),   # password: welcome123
+    "team2":   hash_pw("welcome123"),   # password: welcome123
 }
-
-
 
 
 def is_logged_in():

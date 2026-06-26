@@ -6,6 +6,7 @@
 <title>MPVF · Material Price & Vendor Finder</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%235B2D8E'/%3E%3Cstop offset='100%25' stop-color='%23F97316'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='16' y='22' text-anchor='middle' font-size='16' font-weight='900' font-family='Arial,sans-serif' fill='white'%3EM%3C/text%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -131,6 +132,36 @@ header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backd
 .chips{display:flex;flex-wrap:wrap;gap:6px;}
 .chip{font-size:12px;padding:5px 12px;border:1px solid var(--border);border-radius:99px;cursor:pointer;color:var(--text2);background:var(--purple-pale);transition:all .15s;}
 .chip:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-pale);}
+
+/* Bulk upload */
+.bulk-section{margin-top:1rem;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.bulk-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);background:var(--purple-pale);user-select:none;}
+.bulk-head:hover{background:var(--purple-mid);}
+.bulk-body{padding:14px;background:var(--surface);}
+.bulk-hint{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;}
+.bulk-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.bulk-upload-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:linear-gradient(135deg,var(--purple),var(--purple-l));color:#fff;border-radius:var(--rsm);font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(91,45,142,0.25);}
+.bulk-upload-btn:hover{opacity:.9;}
+.bulk-template-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--rsm);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;}
+.bulk-template-btn:hover{border-color:var(--purple);color:var(--purple);}
+.bulk-file-info{font-size:12px;color:var(--text2);margin-bottom:10px;min-height:18px;}
+.bulk-file-info.ok{color:var(--success);}
+.bulk-file-info.err{color:var(--danger);}
+.bulk-run-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:linear-gradient(135deg,var(--orange),var(--orange-l));color:#fff;border:none;border-radius:var(--rsm);font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(249,115,22,0.3);}
+.bulk-run-btn:hover{opacity:.9;}
+.bulk-run-btn:disabled{opacity:.5;cursor:not-allowed;}
+.bulk-progress{margin:1rem 0;}
+.bulk-progress-bar{height:8px;background:var(--purple-mid);border-radius:99px;overflow:hidden;margin-top:6px;}
+.bulk-progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--orange));border-radius:99px;transition:width .3s;width:0%;}
+.bulk-view-toggle{display:flex;gap:6px;margin-bottom:12px;}
+.bulk-mat-group{margin-bottom:1.25rem;}
+.bulk-mat-head{font-size:14px;font-weight:700;color:var(--purple);padding:8px 12px;background:var(--purple-pale);border-radius:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.bulk-mat-head .count{font-size:11px;font-weight:600;color:var(--text2);}
+.bulk-table{width:100%;border-collapse:collapse;font-size:12px;}
+.bulk-table th{text-align:left;padding:8px 10px;color:var(--text2);font-weight:600;border-bottom:1.5px solid var(--border2);font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
+.bulk-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;}
+.bulk-table tr:hover{background:var(--purple-pale);}
+.bulk-table .best{background:var(--success-bg);}
 
 /* Status */
 .status-bar{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:1rem;min-height:24px;padding:0 2px;}
@@ -294,7 +325,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backd
 <div id="splash">
   <div class="splash-ring"><i class="ti ti-receipt-2"></i></div>
   <div class="splash-title">Material Price &amp; <span>Vendor Finder</span></div>
-  <div class="splash-sub">Printo </div>
+  <div class="splash-sub">AI + Web Scraper</div>
   <div class="splash-bar"><div class="splash-fill"></div></div>
 </div>
 
@@ -303,7 +334,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backd
     <div class="logo-icon"><i class="ti ti-receipt-2"></i></div>
     <div>
       <div class="logo-text">Material Price &amp; <span>Vendor</span> Finder</div>
-      <div class="logo-tag">Printo · India</div>
+      <div class="logo-tag">Gemini AI + Web Scraper · India</div>
     </div>
   </div>
   <div class="header-right">
@@ -338,7 +369,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backd
       <div class="mode-tabs">
         <button class="mode-tab active" id="tabAI" onclick="setMode('ai')">
           <i class="ti ti-sparkles"></i>
-          <span class="tab-label">Printo LLM</span>
+          <span class="tab-label">Gemini AI</span>
           <span class="tag ai-tag">Fast · 3–6</span>
         </button>
         <button class="mode-tab" id="tabScraper" onclick="setMode('scraper')">
@@ -411,6 +442,25 @@ header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backd
         <span class="chip" onclick="quick('Thermal paper roll 80mm')">Thermal roll 80mm</span>
         <span class="chip" onclick="quick('Corrugated box 5 ply')">Corrugated box</span>
       </div>
+
+      <div class="bulk-section">
+        <div class="bulk-head" onclick="toggleBulk()">
+          <span><i class="ti ti-file-spreadsheet" style="color:var(--purple)"></i> Bulk search from file</span>
+          <i class="ti ti-chevron-down" id="bulkChevron"></i>
+        </div>
+        <div class="bulk-body" id="bulkBody" style="display:none;">
+          <p class="bulk-hint">Upload a CSV or Excel file with a column of materials (one per row). The tool searches each one and builds a combined table. Up to <strong>50 rows</strong> per file.</p>
+          <div class="bulk-actions">
+            <label class="bulk-upload-btn">
+              <i class="ti ti-upload"></i> Choose CSV / Excel file
+              <input type="file" id="bulkFile" accept=".csv,.xlsx,.xls" style="display:none;" onchange="handleBulkFile(this)"/>
+            </label>
+            <button class="bulk-template-btn" onclick="downloadTemplate()"><i class="ti ti-download"></i> Download template</button>
+          </div>
+          <div id="bulkFileInfo" class="bulk-file-info"></div>
+          <button class="bulk-run-btn" id="bulkRunBtn" onclick="runBulk()" style="display:none;"><i class="ti ti-player-play"></i> Search all materials</button>
+        </div>
+      </div>
     </div>
 
     <div class="status-bar" id="statusBar"></div>
@@ -418,7 +468,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backd
     <div id="resArea">
       <div class="empty">
         <span class="empty-icon"><i class="ti ti-building-store"></i></span>
-        <p>Use <strong>Printo LLM </strong> for quick results,<br>or <strong>Web Scraper</strong> for deeper search across the internet.</p>
+        <p>Use <strong>Gemini AI</strong> for quick results,<br>or <strong>Web Scraper</strong> for deeper search across the internet.</p>
       </div>
     </div>
   </div>
@@ -921,6 +971,192 @@ function renderHist(){
 }
 function clearHist(){hist=[];localStorage.removeItem('ppf_hist');renderHist();}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ══ BULK SEARCH FROM FILE ══
+let bulkMaterials=[];
+let bulkResults=[];
+let bulkView='grouped';
+const BULK_CAP=50;
+
+function toggleBulk(){
+  const body=document.getElementById('bulkBody');
+  const chev=document.getElementById('bulkChevron');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  chev.className=open?'ti ti-chevron-up':'ti ti-chevron-down';
+}
+
+function downloadTemplate(){
+  const csv='Material,City\nGlossy white paper 230 gsm A4,Bengaluru\nKraft paper 120 gsm,All India\nBond paper 80 gsm A4,Chennai\n';
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='materials_template.csv';a.click();
+}
+
+function handleBulkFile(input){
+  const file=input.files[0];
+  const info=document.getElementById('bulkFileInfo');
+  const runBtn=document.getElementById('bulkRunBtn');
+  if(!file){return;}
+
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+      // Find the material column — first column, skip a header row if present
+      bulkMaterials=[];
+      let startRow=0;
+      const firstCell=String(rows[0]?.[0]||'').toLowerCase();
+      if(firstCell.includes('material')||firstCell.includes('item')||firstCell.includes('product')) startRow=1;
+      const cityHeader=String(rows[0]?.[1]||'').toLowerCase().includes('city');
+      for(let i=startRow;i<rows.length;i++){
+        const mat=String(rows[i][0]||'').trim();
+        if(!mat) continue;
+        const city=cityHeader?String(rows[i][1]||'').trim():'';
+        bulkMaterials.push({material:mat,city:city||null});
+      }
+      if(bulkMaterials.length===0){
+        info.className='bulk-file-info err';
+        info.innerHTML='<i class="ti ti-alert-circle"></i> No materials found. Make sure the first column lists materials.';
+        runBtn.style.display='none';
+        return;
+      }
+      let capNote='';
+      if(bulkMaterials.length>BULK_CAP){
+        bulkMaterials=bulkMaterials.slice(0,BULK_CAP);
+        capNote=` (capped to first ${BULK_CAP})`;
+      }
+      info.className='bulk-file-info ok';
+      info.innerHTML=`<i class="ti ti-circle-check"></i> ${file.name} — ${bulkMaterials.length} material${bulkMaterials.length!==1?'s':''} loaded${capNote}`;
+      runBtn.style.display='inline-flex';
+    }catch(err){
+      info.className='bulk-file-info err';
+      info.innerHTML='<i class="ti ti-alert-circle"></i> Could not read file. Use a CSV or Excel (.xlsx) file.';
+      runBtn.style.display='none';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function runBulk(){
+  if(!bulkMaterials.length) return;
+  const useAI=activeMode==='ai'||activeMode==='both';
+  const useScraper=activeMode==='scraper'||activeMode==='both';
+  if(useAI && !localStorage.getItem('ppf_key')){ showView('settings'); return; }
+  if(useScraper && !scraperOnline){ alert('Web Scraper server is offline. Switch to Gemini AI mode or check the server.'); return; }
+
+  const runBtn=document.getElementById('bulkRunBtn');
+  const resArea=document.getElementById('resArea');
+  runBtn.disabled=true;
+  bulkResults=[];
+
+  const total=bulkMaterials.length;
+  resArea.innerHTML=`<div class="bulk-progress">
+    <div style="font-size:13px;color:var(--text2);">Searching <strong id="bulkNow">0</strong> of ${total} materials…</div>
+    <div class="bulk-progress-bar"><div class="bulk-progress-fill" id="bulkFill"></div></div>
+    <div style="font-size:12px;color:var(--text3);margin-top:6px;" id="bulkCurrent"></div>
+  </div>`;
+
+  for(let i=0;i<bulkMaterials.length;i++){
+    const {material,city}=bulkMaterials[i];
+    const useCity=city||activeCity;
+    document.getElementById('bulkNow').textContent=i+1;
+    document.getElementById('bulkFill').style.width=`${Math.round(((i)/total)*100)}%`;
+    document.getElementById('bulkCurrent').textContent=`Now: ${material}`;
+
+    let vendors=[];
+    try{
+      if(useAI){
+        const ai=await runGemini(material,useCity);
+        vendors=vendors.concat(ai.map(v=>({...v,source:v.source||'Gemini AI'})));
+      }
+      if(useScraper){
+        const r=await fetch(`/api/scrape?q=${encodeURIComponent(material)}&city=${encodeURIComponent(useCity)}&limit=${activeLimit}&distributors_only=${activeDistOnly?'1':'0'}`,{credentials:'include'});
+        if(r.status===401){location.reload();return;}
+        if(r.ok){ const d=await r.json(); vendors=vendors.concat(d.vendors||[]); }
+      }
+    }catch(e){ /* skip this material, keep going */ }
+
+    // Deduplicate within this material
+    const seen=new Set();
+    vendors=vendors.filter(v=>{const k=(v.vendorName||'').toLowerCase().slice(0,25);if(seen.has(k))return false;seen.add(k);return true;});
+    bulkResults.push({material,city:useCity,vendors});
+    stats.vendors+=vendors.length;
+  }
+
+  document.getElementById('bulkFill').style.width='100%';
+  updateStats();
+  renderBulk();
+  runBtn.disabled=false;
+}
+
+function setBulkView(v){
+  bulkView=v;
+  renderBulk();
+}
+
+function renderBulk(){
+  const area=document.getElementById('resArea');
+  const totalVendors=bulkResults.reduce((s,r)=>s+r.vendors.length,0);
+  let html=`<div class="results-head">
+    <div class="results-count"><span class="badge">${bulkResults.length}</span> materials · ${totalVendors} vendors</div>
+    <div class="results-actions"><button class="btn-csv" onclick="exportBulkCSV()"><i class="ti ti-download"></i> Export Excel</button></div>
+  </div>
+  <div class="bulk-view-toggle">
+    <button class="city-btn ${bulkView==='grouped'?'active':''}" onclick="setBulkView('grouped')">Grouped view</button>
+    <button class="city-btn ${bulkView==='compact'?'active':''}" onclick="setBulkView('compact')">Compact view</button>
+  </div>`;
+
+  if(bulkView==='compact'){
+    html+=`<table class="bulk-table"><thead><tr><th>Material</th><th>Best vendor</th><th>Price</th><th>Contact</th><th>City</th></tr></thead><tbody>`;
+    bulkResults.forEach(r=>{
+      const best=r.vendors[0];
+      if(best){
+        html+=`<tr><td><strong>${esc(r.material)}</strong></td><td>${esc(best.vendorName)}</td><td>${esc(best.price||'—')}</td><td>${esc(best.contact||'—')}</td><td>${esc(best.address||r.city)}</td></tr>`;
+      }else{
+        html+=`<tr><td><strong>${esc(r.material)}</strong></td><td colspan="4" style="color:var(--text3)">No vendors found</td></tr>`;
+      }
+    });
+    html+=`</tbody></table>`;
+  }else{
+    bulkResults.forEach(r=>{
+      html+=`<div class="bulk-mat-group">
+        <div class="bulk-mat-head"><span>${esc(r.material)}</span><span class="count">${r.vendors.length} vendor${r.vendors.length!==1?'s':''} · ${esc(r.city)}</span></div>`;
+      if(r.vendors.length){
+        html+=`<table class="bulk-table"><thead><tr><th>Vendor</th><th>Price</th><th>Contact</th><th>Location</th><th>Type</th></tr></thead><tbody>`;
+        r.vendors.forEach((v,idx)=>{
+          const dist=(v.distributor||'');
+          html+=`<tr class="${idx===0?'best':''}"><td><strong>${esc(v.vendorName)}</strong></td><td>${esc(v.price||'—')}</td><td>${esc(v.contact||'—')}</td><td>${esc(v.address||'—')}</td><td>${esc(dist||'—')}</td></tr>`;
+        });
+        html+=`</tbody></table>`;
+      }else{
+        html+=`<p style="font-size:12px;color:var(--text3);padding:0 12px;">No vendors found.</p>`;
+      }
+      html+=`</div>`;
+    });
+  }
+  area.innerHTML=html;
+}
+
+function exportBulkCSV(){
+  const hdr=['Material','City','Vendor Name','Price','Address','Contact','Website','Source','Distributor','Notes'];
+  const rows=[];
+  bulkResults.forEach(r=>{
+    if(r.vendors.length){
+      r.vendors.forEach(v=>{
+        rows.push([r.material,r.city,v.vendorName,v.price,v.address,v.contact,v.website,v.source,v.distributor,v.notes]
+          .map(c=>`"${(c||'').replace(/"/g,'""')}"`).join(','));
+      });
+    }else{
+      rows.push([r.material,r.city,'No vendors found','','','','','','',''].map(c=>`"${c}"`).join(','));
+    }
+  });
+  const blob=new Blob([[hdr.join(','),...rows].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`bulk_vendors_${Date.now()}.csv`;a.click();
+}
+
 document.getElementById('qInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
 </script>
 </body>
