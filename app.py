@@ -15,6 +15,7 @@ import json
 import hashlib
 import secrets
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 log = logging.getLogger(__name__)
@@ -100,29 +101,93 @@ def me():
 def extract_phone(text):
     if not text:
         return ""
-    # Normalise: strip spaces, dashes, dots, brackets so spaced/dotted numbers match
-    raw = text
-    compact = re.sub(r'[\s\-\.\(\)]', '', raw)
+    # Find candidate phone-like substrings first, then validate each.
+    # This tolerates surrounding text like "Phone No: +91-11-66001112, ..."
+    candidates = re.findall(r'(?:\+?91[\-\s]?)?(?:0\d|\d)[\d\s\-\.\(\)]{7,15}\d', text)
+    for cand in candidates:
+        compact = re.sub(r'[\s\-\.\(\)]', '', cand)
+        body = re.sub(r'^(?:\+?91|0)', '', compact)
 
-    # 1) Mobile: 10-digit starting 6-9, optional +91/0 prefix
-    m = re.search(r'(?:\+?91|0)?([6-9]\d{9})', compact)
-    if m:
-        return "+91-" + m.group(1)
-
-    # 2) Landline with STD code: +91 followed by 2-4 digit area code + 6-8 digit number
-    #    e.g. 080-23570863, 011 4567 8900
-    m = re.search(r'(?:\+?91)?(0\d{2,4}\d{6,8})', compact)
-    if m:
-        num = m.group(1)
-        if 8 <= len(num) <= 12:
-            return num
-
-    # 3) Bare landline 8 digits (rare, last resort)
-    m = re.search(r'(?<!\d)(\d{8})(?!\d)', compact)
-    if m:
-        return m.group(1)
-
+        # Mobile: 10 digits starting 6-9
+        m = re.search(r'(?<!\d)([6-9]\d{9})(?!\d)', body)
+        if m:
+            return "+91-" + m.group(1)
+        # Landline/STD: 10-11 digits starting 1-5 (metro/area codes)
+        if re.fullmatch(r'\d{10,11}', body) and body[0] in '12345':
+            return "+91-" + body
+        # Landline kept with 0 prefix
+        if re.fullmatch(r'0\d{8,11}', compact):
+            return compact
     return ""
+
+
+# ─────────────────────────────────────────
+# Fetch a vendor's webpage and pull the phone number from it.
+# Used only for vendors missing a phone. Bounded + parallel + safe.
+# ─────────────────────────────────────────
+FETCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Accept-Language": "en-IN,en;q=0.9",
+}
+FETCH_TIMEOUT = 3          # seconds per page — strict so one slow site can't hang us
+MAX_PAGES_TO_FETCH = 10    # hard cap per search — protects free-tier timeout
+
+def fetch_phone_from_page(url):
+    """Visit one webpage and try to extract a phone number. Returns '' on any failure."""
+    if not url or not url.startswith("http"):
+        return ""
+    try:
+        resp = requests.get(url, headers=FETCH_HEADERS, timeout=FETCH_TIMEOUT)
+        if resp.status_code != 200:
+            return ""
+        html = resp.text
+
+        # 1) Prefer explicit tel: links — most reliable
+        tel = re.search(r'tel:\+?([\d\s\-]{8,15})', html)
+        if tel:
+            ph = extract_phone(tel.group(1))
+            if ph:
+                return ph
+
+        # 2) Look near "phone"/"call"/"contact" words for a number
+        for m in re.finditer(r'(?:phone|call|contact|mobile|tel)[^0-9+]{0,20}([+\d][\d\s\-().]{8,18})',
+                             html, re.IGNORECASE):
+            ph = extract_phone(m.group(1))
+            if ph:
+                return ph
+
+        # 3) Fallback: first phone-looking number anywhere on the page
+        ph = extract_phone(html)
+        if ph:
+            return ph
+    except Exception:
+        return ""
+    return ""
+
+
+def enrich_missing_phones(vendors):
+    """For vendors missing a phone but having a website, fetch their page in parallel
+    (bounded by MAX_PAGES_TO_FETCH) and fill in any number found."""
+    targets = [v for v in vendors
+               if v.get("contact") in ("", "Visit website", "Not listed")
+               and v.get("website", "").startswith("http")]
+    targets = targets[:MAX_PAGES_TO_FETCH]
+    if not targets:
+        return vendors
+
+    log.info(f"Enriching {len(targets)} vendor page(s) for phone numbers…")
+    with ThreadPoolExecutor(max_workers=min(8, len(targets))) as pool:
+        future_map = {pool.submit(fetch_phone_from_page, v["website"]): v for v in targets}
+        for fut in as_completed(future_map):
+            v = future_map[fut]
+            try:
+                phone = fut.result()
+                if phone:
+                    v["contact"] = phone
+            except Exception:
+                continue
+    return vendors
 
 def extract_price(text):
     if not text:
@@ -611,6 +676,10 @@ def api_scrape():
         return s
 
     ranked = sorted(all_vendors, key=rank, reverse=True)[:limit]
+
+    # Fill in phone numbers for top vendors that are missing one (bounded, parallel)
+    enrich_missing_phones(ranked)
+
     for v in ranked:
         v.pop("_dscore", None)
 
@@ -622,7 +691,7 @@ def api_scrape():
 def health():
     return jsonify({
         "status": "running",
-        "version": "cloud-2.0-distributor",
+        "version": "cloud-2.1-phone-enrich",
         "serper_configured": bool(SERPER_KEY)
     })
 
