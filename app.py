@@ -44,16 +44,11 @@ def hash_pw(password):
 # username : password-hash
 # Default password for all three below is shown in comments — CHANGE THESE.
 USERS = {
-    "mohan.w@printo.in":   hash_pw("Printo@123"),    # password: Printo@123
-    "karunya.s@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "gayathri.b@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "shivaraj.p@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "jessu.u@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "hamsa.v@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "manish.s@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-    "ziaur.r@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
-
+    "mohan":   hash_pw("printo123"),    # password: printo123
+    "team1":   hash_pw("welcome123"),   # password: welcome123
+    "team2":   hash_pw("welcome123"),   # password: welcome123
 }
+
 
 def is_logged_in():
     return session.get("user") is not None
@@ -105,9 +100,29 @@ def me():
 def extract_phone(text):
     if not text:
         return ""
-    text = text.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-    phones = re.findall(r'(?:\+91)?[6-9]\d{9}', text)
-    return phones[0] if phones else ""
+    # Normalise: strip spaces, dashes, dots, brackets so spaced/dotted numbers match
+    raw = text
+    compact = re.sub(r'[\s\-\.\(\)]', '', raw)
+
+    # 1) Mobile: 10-digit starting 6-9, optional +91/0 prefix
+    m = re.search(r'(?:\+?91|0)?([6-9]\d{9})', compact)
+    if m:
+        return "+91-" + m.group(1)
+
+    # 2) Landline with STD code: +91 followed by 2-4 digit area code + 6-8 digit number
+    #    e.g. 080-23570863, 011 4567 8900
+    m = re.search(r'(?:\+?91)?(0\d{2,4}\d{6,8})', compact)
+    if m:
+        num = m.group(1)
+        if 8 <= len(num) <= 12:
+            return num
+
+    # 3) Bare landline 8 digits (rare, last resort)
+    m = re.search(r'(?<!\d)(\d{8})(?!\d)', compact)
+    if m:
+        return m.group(1)
+
+    return ""
 
 def extract_price(text):
     if not text:
@@ -296,6 +311,67 @@ def serper_search(query, serper_key, num=10):
         raise RuntimeError(f"Network error: {e}")
 
 
+PLACES_URL = "https://google.serper.dev/places"
+
+def places_search(query, serper_key):
+    """Call Serper.dev Places endpoint — returns Google Maps business listings
+    with verified phone numbers and addresses. Best source of real contacts."""
+    headers = {"X-API-KEY": serper_key, "Content-Type": "application/json"}
+    payload = {"q": query, "gl": "in", "hl": "en"}
+    try:
+        resp = requests.post(PLACES_URL, headers=headers, json=payload, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.HTTPError:
+        if resp.status_code in (401, 403):
+            raise ValueError("Invalid Serper API key. Get a free key at serper.dev")
+        raise RuntimeError(f"Places returned {resp.status_code}")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Network error: {e}")
+
+
+def parse_places(data, city):
+    """Parse Serper Places JSON into vendor cards with verified phone + address."""
+    vendors = []
+    for place in data.get("places", []):
+        try:
+            name    = clean(place.get("title", ""))
+            addr    = clean(place.get("address", ""))
+            phone   = clean(place.get("phoneNumber", ""))
+            rating  = place.get("rating", "")
+            reviews = place.get("ratingCount", "") or place.get("reviewsCount", "")
+            link    = clean(place.get("website", ""))
+            category = clean(place.get("category", ""))
+
+            if not name:
+                continue
+            if is_blocked_marketplace(link):
+                continue
+
+            notes = ""
+            if rating:
+                notes += f"Rating: {rating}/5"
+            if reviews:
+                notes += f" ({reviews} reviews)"
+
+            pscore, plabel = distributor_score(f"{name} {category}")
+
+            vendors.append({
+                "vendorName": name[:90],
+                "price":      "Contact for quote",
+                "address":    addr[:120] or (city if city != "All" else "India"),
+                "contact":    phone or "Visit website",
+                "website":    link[:200],
+                "notes":      notes,
+                "source":     "Google Maps",
+                "distributor": plabel,
+                "_dscore":     pscore
+            })
+        except Exception:
+            continue
+    return vendors
+
+
 def parse_results(data, city):
     """Parse Serper JSON into vendor cards."""
     vendors = []
@@ -464,6 +540,33 @@ def api_scrape():
     all_vendors = []
     queries = build_queries(material, city)
     seen_names = set()
+
+    # ── Maps/Places first: these carry verified phone numbers ──
+    city_str = city if city != "All" else "India"
+    place_queries = [
+        f"{material} distributor {city_str}",
+        f"{material} wholesaler {city_str}",
+        f"{material} dealer {city_str}",
+    ]
+    for pq in place_queries:
+        try:
+            log.info(f"[Places] {pq}")
+            pdata = places_search(pq, SERPER_KEY)
+            pvendors = parse_places(pdata, city)
+            log.info(f"  -> {len(pvendors)} map listings")
+            for v in pvendors:
+                key = v["vendorName"].lower()[:25]
+                if key not in seen_names:
+                    seen_names.add(key)
+                    all_vendors.append(v)
+        except ValueError as e:
+            if "Invalid Serper API key" in str(e):
+                return jsonify({"error": str(e)}), 400
+            log.error(f"Places failed: {e}")
+            continue
+        except Exception as e:
+            log.error(f"Places failed: {e}")
+            continue
 
     for i, q in enumerate(queries):
         if len(all_vendors) >= limit * 2:
