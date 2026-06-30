@@ -51,9 +51,9 @@ USERS = {
     "jessu.u@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
     "hamsa.v@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
     "manish.s@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
+    "ziaur.r@printo.in":   hash_pw("Printo@123"),   # password: Printo@123
 
 }
-
 
 def is_logged_in():
     return session.get("user") is not None
@@ -184,21 +184,34 @@ BLOCKED_MARKETPLACES = [
 ]
 
 # Layer 2 — words that signal a genuine distributor / wholesaler.
-DISTRIBUTOR_SIGNALS = [
-    "distributor", "distribution", "wholesale", "wholesaler",
-    "authorised dealer", "authorized dealer", "authorised distributor",
-    "authorized distributor", "bulk supplier", "bulk supply",
-    "importer", "importers", "trading co", "trading company",
-    "traders", "enterprises", "agencies", "agency", "stockist",
-    "manufacturer", "mfg", "industries", "mills", "paper mart",
-    "supplier", "suppliers", "c&f", "carrying and forwarding",
+# Split by strength so weak/generic words don't over-promote random firms.
+STRONG_SIGNALS = [
+    "distributor", "distributors", "distribution",
+    "wholesale", "wholesaler", "wholesalers",
+    "authorised dealer", "authorized dealer",
+    "authorised distributor", "authorized distributor",
+    "sole distributor", "exclusive distributor",
+    "stockist", "stockists", "c&f agent",
+]
+MEDIUM_SIGNALS = [
+    "bulk supplier", "bulk supply", "bulk order", "bulk quantity",
+    "importer", "importers", "manufacturer", "manufacturers",
+    "trading company", "trading co", "paper mart", "paper boards",
+    "paper traders", "b2b", "minimum order", "moq", "per ton", "per ream",
+]
+WEAK_SIGNALS = [
+    "traders", "enterprises", "agencies", "agency",
+    "industries", "mills", "supplier", "suppliers",
+    "corporation", "company", "trading",
 ]
 
 # Words that signal a RETAILER / end-consumer shop (demote these).
 RETAIL_SIGNALS = [
     "online store", "buy online", "add to cart", "shop now",
-    "ecommerce", "e-commerce", "retail", "checkout", "marketplace",
-    "compare prices", "best price online", "review", "rating",
+    "ecommerce", "e-commerce", "retail", "retailer", "checkout",
+    "marketplace", "compare prices", "best price online",
+    "free delivery", "cod available", "stationery shop",
+    "buy now", "shopping cart", "wishlist",
 ]
 
 
@@ -213,34 +226,39 @@ def is_blocked_marketplace(url):
 def distributor_score(text):
     """
     Layer 2 — score how likely a vendor is a real distributor/wholesaler.
+    Uses word-boundary matching so partial words don't falsely match.
     Returns (score, likelihood_label).
     """
     if not text:
         return 0, "Low"
     t = text.lower()
 
+    def has(word):
+        # Word-boundary match: "mills" won't match "millses", "b2b" stays exact
+        return re.search(r'(?<![a-z])' + re.escape(word) + r'(?![a-z])', t) is not None
+
     score = 0
-    # Count distributor signals (each unique hit adds points)
-    for kw in DISTRIBUTOR_SIGNALS:
-        if kw in t:
-            # Strong words worth more
-            if kw in ("distributor", "wholesale", "wholesaler",
-                      "authorised distributor", "authorized distributor",
-                      "authorised dealer", "authorized dealer", "stockist"):
-                score += 3
-            elif kw in ("bulk supplier", "bulk supply", "importer",
-                        "manufacturer", "c&f", "trading company"):
-                score += 2
-            else:
-                score += 1
+    strong_hits = 0
+    for kw in STRONG_SIGNALS:
+        if has(kw):
+            score += 3
+            strong_hits += 1
+    for kw in MEDIUM_SIGNALS:
+        if has(kw):
+            score += 2
+    for kw in WEAK_SIGNALS:
+        if has(kw):
+            score += 1
 
-    # Penalise retail signals
+    # Penalise retail signals more firmly
     for kw in RETAIL_SIGNALS:
-        if kw in t:
-            score -= 2
+        if has(kw):
+            score -= 3
 
-    # Map score to a friendly label
-    if score >= 4:
+    # Label thresholds:
+    # - Any strong signal (distributor/wholesaler/stockist) = High outright
+    # - Otherwise rely on accumulated score
+    if strong_hits >= 1 or score >= 5:
         label = "High"
     elif score >= 2:
         label = "Medium"

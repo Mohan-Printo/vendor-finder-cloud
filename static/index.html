@@ -756,11 +756,11 @@ async function doSearch(){
   let steps='';
   if(useAI) steps+=`<div class="scan-step" id="ssAI"><i class="ti ti-sparkles"></i> Gemini AI search…</div>`;
   if(useScraper){
-    steps+=`<div class="scan-step" id="ssG"><i class="ti ti-brand-google"></i> Google web scan…</div>`;
-    steps+=`<div class="scan-step" id="ssIM"><i class="ti ti-building-store"></i> IndiaMART…</div>`;
-    steps+=`<div class="scan-step" id="ssTI"><i class="ti ti-building-store"></i> TradeIndia…</div>`;
-    steps+=`<div class="scan-step" id="ssJD"><i class="ti ti-map-search"></i> JustDial…</div>`;
-    steps+=`<div class="scan-step" id="ssSL"><i class="ti ti-search"></i> Sulekha…</div>`;
+    steps+=`<div class="scan-step" id="ssG"><i class="ti ti-brand-google"></i> Searching the web…</div>`;
+    steps+=`<div class="scan-step" id="ssIM"><i class="ti ti-building-warehouse"></i> Finding distributors…</div>`;
+    steps+=`<div class="scan-step" id="ssTI"><i class="ti ti-truck-delivery"></i> Finding wholesalers…</div>`;
+    steps+=`<div class="scan-step" id="ssJD"><i class="ti ti-shield-check"></i> Checking authorised dealers…</div>`;
+    steps+=`<div class="scan-step" id="ssSL"><i class="ti ti-ban"></i> Removing marketplaces…</div>`;
   }
   steps+=`<div class="scan-step" id="ssMerge"><i class="ti ti-filter"></i> Deduplicating results…</div>`;
 
